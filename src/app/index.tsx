@@ -19,18 +19,40 @@ import { SpeechService } from '@/services/voice/speechService';
 export default function LandingScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 840;
-  const isTablet = width >= 600 && width < 840;
+  const isMobile = width < 600;
+  const _isTablet = width >= 600 && width < 900;
+  const isDesktop = width >= 900;
 
   const [activeVoiceDemo, setActiveVoiceDemo] = useState<string | null>(null);
   const [showIosModal, setShowIosModal] = useState(false);
-  const [downloadStarted, setDownloadStarted] = useState(false);
+  const [showAndroidModal, setShowAndroidModal] = useState(false);
+  const [detectedPlatform, setDetectedPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // If user opens the standalone native mobile app (Android APK or iOS build),
-  // seamlessly route them directly into the full DayPilot OS.
+  // If user opens the standalone native mobile app, route directly into DayPilot OS
   useEffect(() => {
     if (Platform.OS !== 'web') {
       router.replace('/(tabs)');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.navigator) {
+      const ua = (window.navigator.userAgent || '').toLowerCase();
+      if (/iphone|ipad|ipod/.test(ua)) {
+        setDetectedPlatform('ios');
+      } else if (/android/.test(ua)) {
+        setDetectedPlatform('android');
+      } else {
+        setDetectedPlatform('desktop');
+      }
+
+      // Capture native PWA install prompt
+      const handleBeforeInstall = (e: any) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+      return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     }
   }, [router]);
 
@@ -39,24 +61,17 @@ export default function LandingScreen() {
     router.push('/(tabs)');
   };
 
-  const handleDownloadApk = () => {
+  const handleInstallAndroid = async () => {
     SoundService.triggerHapticSuccess();
-    setDownloadStarted(true);
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const link = document.createElement('a');
-      link.href = '/daypilot-ai-release.apk';
-      link.download = 'DayPilot-AI-v1.0.0.apk';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
     } else {
-      Linking.openURL('https://github.com/MujtabaTheCoder/DayPilot-AI/releases');
+      setShowAndroidModal(true);
     }
-
-    setTimeout(() => {
-      setDownloadStarted(false);
-    }, 4000);
   };
 
   const handleTestVoice = async (demoId: string, text: string) => {
@@ -83,7 +98,7 @@ export default function LandingScreen() {
             <View style={styles.glowDot} />
             <Text style={styles.brandTitle}>DAYPILOT AI</Text>
             <View style={styles.editionBadge}>
-              <Text style={styles.editionText}>FAMILY OS</Text>
+              <Text style={styles.editionText}>OFFLINE OS</Text>
             </View>
           </View>
 
@@ -93,8 +108,8 @@ export default function LandingScreen() {
                 Linking.openURL('https://github.com/MujtabaTheCoder/DayPilot-AI')
               }
               style={styles.navGhostButton}>
-              <Ionicons name="logo-github" size={18} color={Colors.dark.textSecondary} />
-              <Text style={styles.navGhostText}>GitHub</Text>
+              <Ionicons name="logo-github" size={17} color={Colors.dark.textSecondary} />
+              {!isMobile && <Text style={styles.navGhostText}>GitHub</Text>}
             </Pressable>
 
             <Pressable
@@ -103,8 +118,8 @@ export default function LandingScreen() {
                 styles.navCtaButton,
                 pressed && styles.buttonPressed,
               ]}>
-              <Text style={styles.navCtaText}>Launch Web App</Text>
-              <Ionicons name="arrow-forward" size={14} color="#070A12" />
+              <Text style={styles.navCtaText}>Open App</Text>
+              <Ionicons name="arrow-forward" size={13} color="#070A12" />
             </Pressable>
           </View>
         </View>
@@ -112,95 +127,197 @@ export default function LandingScreen() {
         {/* HERO SECTION */}
         <View style={[styles.heroContainer, isDesktop && styles.heroContainerDesktop]}>
           <View style={styles.privacyBadge}>
-            <Ionicons name="shield-checkmark" size={13} color={Palette.auroraCyan} />
+            <Ionicons name="shield-checkmark" size={12} color={Palette.auroraCyan} />
             <Text style={styles.privacyBadgeText}>
-              100% OFFLINE • LOCAL PRIVACY • ZERO PAID CLOUD APIS
+              100% OFFLINE • PRIVACY-FIRST • ZERO PAID APIS
             </Text>
           </View>
 
-          <Text style={[styles.heroHeadline, isDesktop && styles.heroHeadlineDesktop]}>
+          <Text
+            style={[
+              styles.heroHeadline,
+              isMobile && styles.heroHeadlineMobile,
+              isDesktop && styles.heroHeadlineDesktop,
+            ]}>
             DayPilot AI
           </Text>
 
-          <Text style={[styles.heroTagline, isDesktop && styles.heroTaglineDesktop]}>
+          <Text
+            style={[
+              styles.heroTagline,
+              isMobile && styles.heroTaglineMobile,
+              isDesktop && styles.heroTaglineDesktop,
+            ]}>
             Offline Family OS & Unbreakable Voice Alarm
           </Text>
 
-          <Text style={[styles.heroSubtext, isDesktop && styles.heroSubtextDesktop]}>
-            The intelligent personal operating system that replaces blaring buzzer
-            alarms with comforting, culturally natural synthesized Urdu, Hindi &
-            English voice reminders. Optimize circadian sleep cycles, conquer your
-            daily flight plan, and own your routines with complete data privacy.
+          <Text
+            style={[
+              styles.heroSubtext,
+              isMobile && styles.heroSubtextMobile,
+              isDesktop && styles.heroSubtextDesktop,
+            ]}>
+            The intelligent personal operating system that replaces harsh buzzer alarms
+            with comforting, culturally natural synthesized Urdu, Hindi & English voice
+            announcements. Master circadian sleep harmony and own your daily routines
+            with 100% device privacy.
           </Text>
 
-          {/* PRIMARY CALL-TO-ACTION BUTTONS */}
+          {/* DYNAMIC PRIMARY CALL-TO-ACTION BUTTONS */}
           <View
             style={[
               styles.ctaButtonGroup,
-              (isDesktop || isTablet) && styles.ctaButtonGroupDesktop,
+              !isMobile && styles.ctaButtonGroupDesktop,
             ]}>
-            {/* 1. Android APK Download */}
-            <Pressable
-              onPress={handleDownloadApk}
-              style={({ pressed }) => [
-                styles.primaryCtaBtn,
-                styles.apkBtn,
-                pressed && styles.buttonPressed,
-              ]}>
-              <View style={styles.btnIconCircle}>
-                <Ionicons name="logo-android" size={22} color="#070A12" />
-              </View>
-              <View style={styles.btnTextCol}>
-                <Text style={styles.btnTopLabel}>DIRECT MOBILE INSTALL</Text>
-                <Text style={styles.btnMainTitle}>
-                  {downloadStarted ? 'Downloading APK...' : 'Download Android APK'}
-                </Text>
-              </View>
-              <Ionicons name="download-outline" size={18} color="#070A12" />
-            </Pressable>
+            {/* If iPhone / iOS Detected */}
+            {detectedPlatform === 'ios' && (
+              <>
+                <Pressable
+                  onPress={() => {
+                    SoundService.triggerHapticLight();
+                    setShowIosModal(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.iosBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleIos]}>
+                    <Ionicons name="logo-apple" size={22} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelIos}>IPHONE & IPAD</Text>
+                    <Text style={styles.btnMainTitleIos}>Add to iPhone Home Screen</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                </Pressable>
 
-            {/* 2. iOS PWA Install */}
-            <Pressable
-              onPress={() => {
-                SoundService.triggerHapticLight();
-                setShowIosModal(true);
-              }}
-              style={({ pressed }) => [
-                styles.primaryCtaBtn,
-                styles.iosBtn,
-                pressed && styles.buttonPressed,
-              ]}>
-              <View style={[styles.btnIconCircle, styles.btnIconCircleIos]}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.btnTextCol}>
-                <Text style={styles.btnTopLabelIos}>IPHONE & IPAD</Text>
-                <Text style={styles.btnMainTitleIos}>Install on iOS (PWA)</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-            </Pressable>
+                <Pressable
+                  onPress={handleLaunchWebApp}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.webBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleWeb]}>
+                    <Ionicons name="open-outline" size={20} color={Palette.auroraCyan} />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelWeb}>INSTANT ACCESS</Text>
+                    <Text style={styles.btnMainTitleWeb}>Open in Safari Browser</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} color={Palette.auroraCyan} />
+                </Pressable>
+              </>
+            )}
 
-            {/* 3. Launch Web App */}
-            <Pressable
-              onPress={handleLaunchWebApp}
-              style={({ pressed }) => [
-                styles.primaryCtaBtn,
-                styles.webBtn,
-                pressed && styles.buttonPressed,
-              ]}>
-              <View style={[styles.btnIconCircle, styles.btnIconCircleWeb]}>
-                <Ionicons name="globe-outline" size={20} color={Palette.auroraCyan} />
-              </View>
-              <View style={styles.btnTextCol}>
-                <Text style={styles.btnTopLabelWeb}>BROWSER VERSION</Text>
-                <Text style={styles.btnMainTitleWeb}>Launch Web Version</Text>
-              </View>
-              <Ionicons name="open-outline" size={18} color={Palette.auroraCyan} />
-            </Pressable>
+            {/* If Android Detected */}
+            {detectedPlatform === 'android' && (
+              <>
+                <Pressable
+                  onPress={handleInstallAndroid}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.apkBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={styles.btnIconCircle}>
+                    <Ionicons name="logo-android" size={22} color="#070A12" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabel}>1-TAP ANDROID INSTALL</Text>
+                    <Text style={styles.btnMainTitle}>Install App on Android</Text>
+                  </View>
+                  <Ionicons name="download-outline" size={18} color="#070A12" />
+                </Pressable>
+
+                <Pressable
+                  onPress={handleLaunchWebApp}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.webBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleWeb]}>
+                    <Ionicons name="open-outline" size={20} color={Palette.auroraCyan} />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelWeb}>BROWSER VERSION</Text>
+                    <Text style={styles.btnMainTitleWeb}>Launch in Chrome</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} color={Palette.auroraCyan} />
+                </Pressable>
+              </>
+            )}
+
+            {/* If Desktop or Unspecified */}
+            {detectedPlatform === 'desktop' && (
+              <>
+                <Pressable
+                  onPress={handleLaunchWebApp}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.apkBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={styles.btnIconCircle}>
+                    <Ionicons name="rocket-outline" size={22} color="#070A12" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabel}>WEB APP</Text>
+                    <Text style={styles.btnMainTitle}>Launch Web Version</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} color="#070A12" />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    SoundService.triggerHapticLight();
+                    setShowAndroidModal(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.webBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleWeb]}>
+                    <Ionicons name="logo-android" size={20} color={Palette.auroraCyan} />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelWeb}>ANDROID INSTALL</Text>
+                    <Text style={styles.btnMainTitleWeb}>Install on Android</Text>
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    SoundService.triggerHapticLight();
+                    setShowIosModal(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.iosBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleIos]}>
+                    <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelIos}>IPHONE SETUP</Text>
+                    <Text style={styles.btnMainTitleIos}>Install on iPhone</Text>
+                  </View>
+                </Pressable>
+              </>
+            )}
           </View>
+
+          {/* Platform note for clarity */}
+          <Text style={styles.platformNoticeText}>
+            💡 DayPilot AI installs directly onto iPhones & Androids via Home Screen PWA. Zero file parse errors.
+          </Text>
         </View>
 
-        {/* INTERACTIVE VOICE SYNTHESIS AUDITION */}
+        {/* INTERACTIVE VOICE DEMO SECTION */}
         <View
           style={[
             styles.voiceShowcaseSection,
@@ -209,19 +326,23 @@ export default function LandingScreen() {
           <View style={styles.sectionHeaderCol}>
             <View style={styles.pillTag}>
               <Ionicons name="volume-high" size={12} color={Palette.auroraCyan} />
-              <Text style={styles.pillTagText}>LIVE VOICE DEMO</Text>
+              <Text style={styles.pillTagText}>LIVE VOICE AUDITION</Text>
             </View>
             <Text style={styles.sectionTitle}>
-              Hear DayPilot's Natural Synthesis in Action
+              Hear DayPilot's Soft Natural Synthesis
             </Text>
             <Text style={styles.sectionSubtitle}>
-              Experience our soft, comforting tone ($0.88$ rate, $1.05$ pitch) with
-              phonetic Roman Urdu adjustments. Tap any sample to preview:
+              Tuned for authentic Roman Urdu & Hindi vowels (0.88 rate, 1.05 pitch).
+              Tap any audio sample to listen:
             </Text>
           </View>
 
-          <View style={styles.voiceCardsGrid}>
-            {/* Demo 1: Morning Wake-Up */}
+          <View
+            style={[
+              styles.voiceCardsGrid,
+              !isMobile && styles.voiceCardsGridDesktop,
+            ]}>
+            {/* Demo 1: Wake Up */}
             <Pressable
               onPress={() =>
                 handleTestVoice(
@@ -238,7 +359,7 @@ export default function LandingScreen() {
                   <Ionicons name="sunny" size={18} color={Palette.auroraCyan} />
                 </View>
                 <View style={styles.voiceCardMeta}>
-                  <Text style={styles.voiceCardTitle}>Morning Wake-Up Loop</Text>
+                  <Text style={styles.voiceCardTitle}>Morning Wake-Up</Text>
                   <Text style={styles.voiceCardTarget}>4:00 AM / 6:30 AM</Text>
                 </View>
                 <Ionicons
@@ -252,7 +373,7 @@ export default function LandingScreen() {
               </Text>
             </Pressable>
 
-            {/* Demo 2: Bedtime Rest */}
+            {/* Demo 2: Bedtime */}
             <Pressable
               onPress={() =>
                 handleTestVoice(
@@ -269,7 +390,7 @@ export default function LandingScreen() {
                   <Ionicons name="moon" size={18} color={Palette.auroraPurple} />
                 </View>
                 <View style={styles.voiceCardMeta}>
-                  <Text style={styles.voiceCardTitle}>Bedtime Rest Loop</Text>
+                  <Text style={styles.voiceCardTitle}>Bedtime Rest</Text>
                   <Text style={styles.voiceCardTarget}>10:00 PM</Text>
                 </View>
                 <Ionicons
@@ -283,12 +404,12 @@ export default function LandingScreen() {
               </Text>
             </Pressable>
 
-            {/* Demo 3: Morning Audio Briefing */}
+            {/* Demo 3: Morning Briefing */}
             <Pressable
               onPress={() =>
                 handleTestVoice(
                   'briefing',
-                  'Shabaash Aasif! Uthne ka waqt khatam hua. Aaj aapke schedule mein deep work aur exercise hain. Din shuru karein aur kamyab rahein!'
+                  'Shabaash Aasif! Uthne ka waqt khatam hua. Aaj aapke schedule mein 3 routines hain. Din shuru karein aur kamyab rahein!'
                 )
               }
               style={[
@@ -314,197 +435,97 @@ export default function LandingScreen() {
                 />
               </View>
               <Text style={styles.voiceDemoQuote}>
-                "Shabaash Aasif! Uthne ka waqt khatam hua. Aaj aapke schedule mein deep work..."
+                "Shabaash Aasif! Uthne ka waqt khatam hua. Aaj aapke schedule mein..."
               </Text>
             </Pressable>
           </View>
         </View>
 
-        {/* PILLARS / CORE FEATURES SHOWCASE */}
+        {/* CORE FEATURES SHOWCASE */}
         <View style={[styles.featuresSection, isDesktop && styles.featuresDesktop]}>
           <View style={styles.sectionHeaderCol}>
             <View style={styles.pillTag}>
               <Ionicons name="flash" size={12} color={Palette.auroraCyan} />
-              <Text style={styles.pillTagText}>PRODUCT CAPABILITIES</Text>
+              <Text style={styles.pillTagText}>KEY CAPABILITIES</Text>
             </View>
             <Text style={styles.sectionTitle}>
-              Designed for Human Biology & Absolute Privacy
+              Built for Biology & Absolute Privacy
             </Text>
           </View>
 
           <View style={styles.featuresGrid}>
-            {/* Feature 1 */}
             <View style={styles.featureCard}>
               <View style={styles.featureIconCircle}>
-                <Ionicons name="mic" size={22} color={Palette.auroraCyan} />
+                <Ionicons name="mic" size={20} color={Palette.auroraCyan} />
               </View>
-              <Text style={styles.featureCardTitle}>Natural Voice Synthesis</Text>
+              <Text style={styles.featureCardTitle}>Natural Urdu/Hindi TTS</Text>
               <Text style={styles.featureCardDesc}>
-                Soft, comforting pronunciation tuned specifically for Roman Urdu,
-                Hindi, and English. Automatically maps to native platform voices with
-                distinct male/female profiles.
+                Phonetic normalizer softens imperatives, creates natural pauses, and maps
+                to native Indic device voices.
               </Text>
             </View>
 
-            {/* Feature 2 */}
             <View style={styles.featureCard}>
               <View
                 style={[
                   styles.featureIconCircle,
                   { backgroundColor: 'rgba(139, 92, 246, 0.15)' },
                 ]}>
-                <Ionicons name="repeat" size={22} color={Palette.auroraPurple} />
+                <Ionicons name="repeat" size={20} color={Palette.auroraPurple} />
               </View>
-              <Text style={styles.featureCardTitle}>
-                Unbreakable Wake & Sleep Loops
-              </Text>
+              <Text style={styles.featureCardTitle}>Unbreakable Voice Loop</Text>
               <Text style={styles.featureCardDesc}>
-                Voice reminders continuously repeat alongside haptics until you
-                explicitly tap "I'm Awake / Done". Backed by an 8.5-second watchdog
-                failsafe timer.
+                Persistent wake-up voice alert with watchdog timer. Persists indefinitely
+                until you tap "I'm Awake / Done".
               </Text>
             </View>
 
-            {/* Feature 3 */}
             <View style={styles.featureCard}>
               <View
                 style={[
                   styles.featureIconCircle,
                   { backgroundColor: 'rgba(245, 158, 11, 0.15)' },
                 ]}>
-                <Ionicons name="moon" size={22} color={Palette.auroraAmber} />
+                <Ionicons name="moon" size={20} color={Palette.auroraAmber} />
               </View>
-              <Text style={styles.featureCardTitle}>
-                Circadian Sleep Cycle Engine
-              </Text>
+              <Text style={styles.featureCardTitle}>Circadian Sleep Engine</Text>
               <Text style={styles.featureCardDesc}>
                 Calculates precise 90-minute sleep cycles between your bedtime and
-                wake-up time to eliminate morning brain fog and maximize restorative
-                rest.
+                wake-up time to eliminate grogginess.
               </Text>
             </View>
 
-            {/* Feature 4 */}
             <View style={styles.featureCard}>
               <View
                 style={[
                   styles.featureIconCircle,
                   { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
                 ]}>
-                <Ionicons name="lock-closed" size={22} color={Palette.auroraEmerald} />
+                <Ionicons name="shield-checkmark" size={20} color={Palette.auroraEmerald} />
               </View>
-              <Text style={styles.featureCardTitle}>100% Offline & Private</Text>
+              <Text style={styles.featureCardTitle}>100% Offline SQLite</Text>
               <Text style={styles.featureCardDesc}>
-                All profiles, routines, habit streaks, and voice alarms are stored
-                exclusively on your physical device via SQLite. Zero telemetry, zero
-                cloud snooping.
-              </Text>
-            </View>
-
-            {/* Feature 5 */}
-            <View style={styles.featureCard}>
-              <View
-                style={[
-                  styles.featureIconCircle,
-                  { backgroundColor: 'rgba(0, 242, 254, 0.15)' },
-                ]}>
-                <Ionicons name="flame" size={22} color={Palette.auroraCyan} />
-              </View>
-              <Text style={styles.featureCardTitle}>Habit Streaks & Logging</Text>
-              <Text style={styles.featureCardDesc}>
-                Track daily water intake, workouts, and focus hours. Visualize your
-                consistency with 7-day micro-dots and motivating completion scores.
-              </Text>
-            </View>
-
-            {/* Feature 6 */}
-            <View style={styles.featureCard}>
-              <View
-                style={[
-                  styles.featureIconCircle,
-                  { backgroundColor: 'rgba(236, 72, 153, 0.15)' },
-                ]}>
-                <Ionicons name="chatbubbles" size={22} color="#EC4899" />
-              </View>
-              <Text style={styles.featureCardTitle}>Pilot Voice Assistant</Text>
-              <Text style={styles.featureCardDesc}>
-                Dictate routines by voice: "Set workout at 7 AM and lunch at 2 PM".
-                Pilot parses your intent locally and structures your day instantly.
+                Zero cloud dependencies. All alarms, routines, and habit streaks stay
+                safely encrypted on your physical device.
               </Text>
             </View>
           </View>
         </View>
 
-        {/* 3-STEP WORKFLOW SHOWCASE */}
-        <View style={[styles.stepsSection, isDesktop && styles.stepsDesktop]}>
-          <View style={styles.sectionHeaderCol}>
-            <Text style={styles.sectionTitle}>Get Up & Running in 60 Seconds</Text>
-            <Text style={styles.sectionSubtitle}>
-              Clean canvas onboarding that adapts completely to your life:
-            </Text>
-          </View>
-
-          <View style={styles.stepsRow}>
-            <View style={styles.stepItem}>
-              <View style={styles.stepNumberBadge}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <Text style={styles.stepTitle}>Enter Your Name</Text>
-              <Text style={styles.stepDesc}>
-                Set your personal name so the AI addresses you respectfully in every
-                spoken alert.
-              </Text>
-            </View>
-
-            <View style={styles.stepItem}>
-              <View style={styles.stepNumberBadge}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <Text style={styles.stepTitle}>Configure Sleep & Wake</Text>
-              <Text style={styles.stepDesc}>
-                Select bedtime (e.g. 10:00 PM) and wake time (e.g. 6:30 AM). Your
-                circadian cycles calibrate instantly.
-              </Text>
-            </View>
-
-            <View style={styles.stepItem}>
-              <View style={styles.stepNumberBadge}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <Text style={styles.stepTitle}>Pick Voice Persona</Text>
-              <Text style={styles.stepDesc}>
-                Choose between warm female or male voices, preview the greeting, and
-                take flight.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* DOWNLOAD CENTER FOOTER BANNER */}
+        {/* BOTTOM DOWNLOAD CENTER BANNER */}
         <View
           style={[
             styles.downloadCenterCard,
             isDesktop && styles.downloadCenterDesktop,
           ]}>
           <Text style={styles.downloadCardHeadline}>
-            Ready to Take Flight with DayPilot AI?
+            Ready to Experience DayPilot AI?
           </Text>
           <Text style={styles.downloadCardSub}>
-            Available for direct Android installation, iOS PWA, or instant web access.
+            Installable on iPhone, Android, or launch directly in any modern browser.
           </Text>
 
           <View style={styles.downloadButtonsRow}>
-            <Pressable
-              onPress={handleDownloadApk}
-              style={({ pressed }) => [
-                styles.footerActionBtn,
-                styles.footerApkBtn,
-                pressed && styles.buttonPressed,
-              ]}>
-              <Ionicons name="logo-android" size={18} color="#070A12" />
-              <Text style={styles.footerApkText}>Download APK (.apk)</Text>
-            </Pressable>
-
             <Pressable
               onPress={() => setShowIosModal(true)}
               style={({ pressed }) => [
@@ -512,8 +533,19 @@ export default function LandingScreen() {
                 styles.footerIosBtn,
                 pressed && styles.buttonPressed,
               ]}>
-              <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
-              <Text style={styles.footerIosText}>Install on iOS</Text>
+              <Ionicons name="logo-apple" size={17} color="#FFFFFF" />
+              <Text style={styles.footerIosText}>Install on iPhone</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShowAndroidModal(true)}
+              style={({ pressed }) => [
+                styles.footerActionBtn,
+                styles.footerApkBtn,
+                pressed && styles.buttonPressed,
+              ]}>
+              <Ionicons name="logo-android" size={17} color="#070A12" />
+              <Text style={styles.footerApkText}>Install on Android</Text>
             </Pressable>
 
             <Pressable
@@ -523,7 +555,7 @@ export default function LandingScreen() {
                 styles.footerWebBtn,
                 pressed && styles.buttonPressed,
               ]}>
-              <Ionicons name="rocket-outline" size={18} color={Palette.auroraCyan} />
+              <Ionicons name="rocket-outline" size={17} color={Palette.auroraCyan} />
               <Text style={styles.footerWebText}>Launch Web Version</Text>
             </Pressable>
           </View>
@@ -552,7 +584,7 @@ export default function LandingScreen() {
               <View style={styles.modalTitleCol}>
                 <Text style={styles.modalTitle}>Install on iPhone / iPad</Text>
                 <Text style={styles.modalSubtitle}>
-                  Add DayPilot AI to your Home Screen in 3 taps
+                  Zero file downloads • Native Apple Home Screen App
                 </Text>
               </View>
               <Pressable
@@ -573,8 +605,8 @@ export default function LandingScreen() {
                     Open in Safari & Tap Share
                   </Text>
                   <Text style={styles.instructionDesc}>
-                    Tap the Safari Share button at the bottom of the screen (the square
-                    icon with an upward arrow <Ionicons name="share-outline" size={14} color={Palette.auroraCyan} />).
+                    Tap the Safari Share button at the bottom (the square with upward
+                    arrow <Ionicons name="share-outline" size={13} color={Palette.auroraCyan} />).
                   </Text>
                 </View>
               </View>
@@ -588,9 +620,8 @@ export default function LandingScreen() {
                     Select "Add to Home Screen"
                   </Text>
                   <Text style={styles.instructionDesc}>
-                    Scroll down the share sheet and tap{' '}
-                    <Text style={styles.highlightText}>"Add to Home Screen"</Text> (icon
-                    with a plus sign).
+                    Scroll down the options and tap{' '}
+                    <Text style={styles.highlightText}>"Add to Home Screen"</Text> (+ icon).
                   </Text>
                 </View>
               </View>
@@ -600,11 +631,10 @@ export default function LandingScreen() {
                   <Text style={styles.stepNumPillText}>3</Text>
                 </View>
                 <View style={styles.instructionTextCol}>
-                  <Text style={styles.instructionTitle}>Tap "Add" & Enjoy Standalone</Text>
+                  <Text style={styles.instructionTitle}>Tap "Add" in Top-Right</Text>
                   <Text style={styles.instructionDesc}>
-                    Tap <Text style={styles.highlightText}>"Add"</Text> in the
-                    top-right corner. DayPilot will install as a standalone app with
-                    full offline capabilities!
+                    Tap <Text style={styles.highlightText}>"Add"</Text>. DayPilot installs
+                    instantly on your iPhone home screen with offline audio support!
                   </Text>
                 </View>
               </View>
@@ -616,7 +646,81 @@ export default function LandingScreen() {
                 handleLaunchWebApp();
               }}
               style={styles.modalPrimaryBtn}>
-              <Text style={styles.modalPrimaryBtnText}>Launch Web App Now</Text>
+              <Text style={styles.modalPrimaryBtnText}>Open Web App Now</Text>
+              <Ionicons name="arrow-forward" size={16} color="#070A12" />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ANDROID INSTALLATION MODAL */}
+      <Modal
+        visible={showAndroidModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAndroidModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.appleIconCircle, { backgroundColor: 'rgba(0, 242, 254, 0.15)' }]}>
+                <Ionicons name="logo-android" size={24} color={Palette.auroraCyan} />
+              </View>
+              <View style={styles.modalTitleCol}>
+                <Text style={styles.modalTitle}>Install on Android</Text>
+                <Text style={styles.modalSubtitle}>
+                  Choose your preferred installation method
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setShowAndroidModal(false)}
+                hitSlop={10}
+                style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.dark.textSecondary} />
+              </Pressable>
+            </View>
+
+            <View style={styles.instructionsList}>
+              {/* Method 1: PWA (Recommended, No Parse Error) */}
+              <View style={styles.androidOptionCard}>
+                <View style={styles.optionTag}>
+                  <Text style={styles.optionTagText}>RECOMMENDED • 1-TAP</Text>
+                </View>
+                <Text style={styles.optionTitle}>Home Screen Web App (PWA)</Text>
+                <Text style={styles.optionDesc}>
+                  In Chrome, tap the menu (⋮) $\rightarrow$ tap <Text style={styles.highlightText}>"Add to Home Screen"</Text> or <Text style={styles.highlightText}>"Install App"</Text>. Works 100% offline with zero parse errors!
+                </Text>
+              </View>
+
+              {/* Method 2: Standalone APK via GitHub */}
+              <View style={[styles.androidOptionCard, { borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                <View style={[styles.optionTag, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
+                  <Text style={[styles.optionTagText, { color: Palette.auroraPurple }]}>STANDALONE APK</Text>
+                </View>
+                <Text style={styles.optionTitle}>Build or Download APK Release</Text>
+                <Text style={styles.optionDesc}>
+                  Download pre-compiled binaries from GitHub Releases, or generate an APK using Expo EAS:
+                </Text>
+                <Pressable
+                  onPress={() =>
+                    Linking.openURL(
+                      'https://github.com/MujtabaTheCoder/DayPilot-AI/releases'
+                    )
+                  }
+                  style={styles.gitReleasesBtn}>
+                  <Ionicons name="logo-github" size={15} color={Palette.auroraCyan} />
+                  <Text style={styles.gitReleasesBtnText}>Open GitHub Releases</Text>
+                  <Ionicons name="open-outline" size={13} color={Palette.auroraCyan} />
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                setShowAndroidModal(false);
+                handleLaunchWebApp();
+              }}
+              style={styles.modalPrimaryBtn}>
+              <Text style={styles.modalPrimaryBtnText}>Open Web App Now</Text>
               <Ionicons name="arrow-forward" size={16} color="#070A12" />
             </Pressable>
           </View>
@@ -634,19 +738,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: Spacing.xxl * 2,
   },
+
+  /* NAVBAR */
   navBar: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: Colors.dark.border,
-    backgroundColor: 'rgba(5, 7, 13, 0.85)',
+    backgroundColor: 'rgba(5, 7, 13, 0.95)',
   },
   navBarDesktop: {
     paddingHorizontal: Spacing.xxl,
-    maxWidth: 1200,
+    maxWidth: 1100,
     width: '100%',
     alignSelf: 'center',
     borderBottomWidth: 0,
@@ -654,35 +760,35 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: 6,
   },
   glowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: Palette.auroraCyan,
     shadowColor: Palette.auroraCyan,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   brandTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: Colors.dark.text,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   editionBadge: {
     backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: Radius.xs,
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
   },
   editionText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
     color: Palette.auroraPurple,
     letterSpacing: 0.5,
@@ -690,47 +796,46 @@ const styles = StyleSheet.create({
   navActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.xs,
   },
   navGhostButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
   },
   navGhostText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.dark.textSecondary,
   },
   navCtaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: Palette.auroraCyan,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 6,
     borderRadius: Radius.full,
   },
   navCtaText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#070A12',
   },
 
   /* HERO */
   heroContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
     alignItems: 'center',
-    textAlign: 'center',
   },
   heroContainerDesktop: {
     paddingTop: Spacing.xxl * 1.5,
     paddingBottom: Spacing.xxl,
-    maxWidth: 960,
+    maxWidth: 900,
     alignSelf: 'center',
   },
   privacyBadge: {
@@ -739,98 +844,105 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: 'rgba(0, 242, 254, 0.08)',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: 'rgba(0, 242, 254, 0.25)',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   privacyBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: Palette.auroraCyan,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   heroHeadline: {
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: '900',
     color: Colors.dark.text,
     textAlign: 'center',
-    letterSpacing: -1,
+    letterSpacing: -0.8,
+  },
+  heroHeadlineMobile: {
+    fontSize: 30,
   },
   heroHeadlineDesktop: {
-    fontSize: 56,
+    fontSize: 52,
   },
   heroTagline: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: Palette.auroraCyan,
     textAlign: 'center',
     marginTop: Spacing.xs,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     letterSpacing: -0.2,
   },
+  heroTaglineMobile: {
+    fontSize: 15,
+  },
   heroTaglineDesktop: {
-    fontSize: 26,
+    fontSize: 24,
   },
   heroSubtext: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.dark.textSecondary,
     textAlign: 'center',
-    lineHeight: 23,
-    maxWidth: 680,
-    marginBottom: Spacing.xxl,
+    lineHeight: 20,
+    maxWidth: 640,
+    marginBottom: Spacing.lg,
+  },
+  heroSubtextMobile: {
+    fontSize: 13,
+    lineHeight: 19,
   },
   heroSubtextDesktop: {
-    fontSize: 17,
-    lineHeight: 27,
+    fontSize: 16,
+    lineHeight: 25,
   },
 
-  /* CTA GROUP */
+  /* CTA BUTTONS */
   ctaButtonGroup: {
     width: '100%',
-    gap: Spacing.md,
-    maxWidth: 500,
+    gap: Spacing.sm,
   },
   ctaButtonGroupDesktop: {
     flexDirection: 'row',
-    maxWidth: 900,
+    maxWidth: 800,
     justifyContent: 'center',
   },
   primaryCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     borderRadius: Radius.lg,
-    gap: Spacing.md,
-    minHeight: 64,
+    gap: Spacing.sm,
+    minHeight: 58,
+    flex: 1,
   },
   apkBtn: {
     backgroundColor: Palette.auroraCyan,
     shadowColor: Palette.auroraCyan,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
-    flex: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   iosBtn: {
     backgroundColor: '#1E2333',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    flex: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   webBtn: {
     backgroundColor: 'rgba(0, 242, 254, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(0, 242, 254, 0.35)',
-    flex: 1,
   },
   btnIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(7, 10, 18, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -848,10 +960,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: '#070A12',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   btnMainTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#070A12',
     marginTop: 1,
@@ -860,10 +972,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: Colors.dark.textSecondary,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   btnMainTitleIos: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
     marginTop: 1,
@@ -872,10 +984,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: Palette.auroraCyan,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   btnMainTitleWeb: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: Palette.auroraCyan,
     marginTop: 1,
@@ -884,28 +996,35 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
+  platformNoticeText: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+    maxWidth: 500,
+    lineHeight: 16,
+  },
 
-  /* VOICE AUDITION SHOWCASE */
+  /* VOICE AUDITION */
   voiceShowcaseSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
-    marginHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xl,
+    marginHorizontal: Spacing.sm,
+    marginTop: Spacing.md,
     backgroundColor: Colors.dark.surface,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.dark.border,
   },
   voiceShowcaseDesktop: {
-    maxWidth: 1100,
+    maxWidth: 1000,
     width: '100%',
     alignSelf: 'center',
-    paddingHorizontal: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
   },
   sectionHeaderCol: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
+    marginBottom: Spacing.lg,
   },
   pillTag: {
     flexDirection: 'row',
@@ -918,34 +1037,38 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   pillTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     color: Palette.auroraCyan,
     letterSpacing: 0.8,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.dark.text,
     textAlign: 'center',
-    letterSpacing: -0.3,
   },
   sectionSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.dark.textSecondary,
     textAlign: 'center',
     marginTop: 4,
-    maxWidth: 600,
+    maxWidth: 500,
+    lineHeight: 17,
   },
   voiceCardsGrid: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
+  },
+  voiceCardsGridDesktop: {
+    flexDirection: 'row',
   },
   voiceDemoCard: {
     backgroundColor: Colors.dark.surfaceElevated,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    flex: 1,
   },
   voiceDemoCardActive: {
     borderColor: Palette.auroraCyan,
@@ -954,12 +1077,12 @@ const styles = StyleSheet.create({
   voiceDemoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   voiceIconRing: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(0, 242, 254, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -974,184 +1097,132 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   voiceCardTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: Colors.dark.text,
   },
   voiceCardTarget: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.dark.textSecondary,
   },
   voiceDemoQuote: {
-    fontSize: 13,
+    fontSize: 12,
     color: Palette.auroraCyan,
     fontStyle: 'italic',
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
     backgroundColor: 'rgba(0, 242, 254, 0.04)',
-    padding: Spacing.sm,
-    borderRadius: Radius.md,
+    padding: Spacing.xs,
+    borderRadius: Radius.xs,
+    lineHeight: 16,
   },
 
   /* FEATURES */
   featuresSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xl,
   },
   featuresDesktop: {
-    maxWidth: 1100,
+    maxWidth: 1000,
     width: '100%',
     alignSelf: 'center',
   },
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   featureCard: {
     backgroundColor: Colors.dark.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.dark.border,
-    flex: 1,
-    minWidth: 260,
+    width: '100%',
+    flexGrow: 1,
+    flexBasis: 240,
   },
   featureIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: 'rgba(0, 242, 254, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  featureCardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.dark.text,
-    marginBottom: Spacing.xs,
-  },
-  featureCardDesc: {
-    fontSize: 13,
-    color: Colors.dark.textSecondary,
-    lineHeight: 19,
-  },
-
-  /* STEPS */
-  stepsSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xl,
-  },
-  stepsDesktop: {
-    maxWidth: 1000,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  stepsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  stepItem: {
-    flex: 1,
-    minWidth: 220,
-    backgroundColor: Colors.dark.surface,
-    padding: Spacing.lg,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  stepNumberBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Palette.auroraCyan,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  stepNumberText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#070A12',
-  },
-  stepTitle: {
+  featureCardTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.dark.text,
     marginBottom: 4,
   },
-  stepDesc: {
+  featureCardDesc: {
     fontSize: 12,
     color: Colors.dark.textSecondary,
-    textAlign: 'center',
     lineHeight: 17,
   },
 
-  /* DOWNLOAD CENTER BANNER */
+  /* DOWNLOAD BANNER */
   downloadCenterCard: {
     backgroundColor: '#0A0F1D',
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.xl,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginHorizontal: Spacing.sm,
+    marginTop: Spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.3)',
+    borderColor: 'rgba(0, 242, 254, 0.25)',
     alignItems: 'center',
-    textAlign: 'center',
   },
   downloadCenterDesktop: {
-    maxWidth: 960,
+    maxWidth: 900,
     width: '100%',
     alignSelf: 'center',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xl,
   },
   downloadCardHeadline: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     color: Colors.dark.text,
     textAlign: 'center',
   },
   downloadCardSub: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.dark.textSecondary,
-    marginTop: 6,
-    marginBottom: Spacing.lg,
+    marginTop: 4,
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   downloadButtonsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     justifyContent: 'center',
     width: '100%',
   },
   footerActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
+    gap: 6,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    minHeight: 44,
   },
   footerApkBtn: {
     backgroundColor: Palette.auroraCyan,
   },
   footerApkText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#070A12',
   },
   footerIosBtn: {
     backgroundColor: '#1E2333',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   footerIosText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -1161,50 +1232,51 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 242, 254, 0.3)',
   },
   footerWebText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: Palette.auroraCyan,
   },
 
   /* FOOTER */
   footerRow: {
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     alignItems: 'center',
   },
   footerText: {
     fontSize: 11,
     color: Colors.dark.textMuted,
     textAlign: 'center',
+    lineHeight: 16,
   },
 
-  /* MODAL */
+  /* MODALS */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 7, 13, 0.88)',
+    backgroundColor: 'rgba(5, 7, 13, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
   modalCard: {
     backgroundColor: Colors.dark.surface,
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 480,
     borderWidth: 1,
     borderColor: Colors.dark.border,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   appleIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#1E2333',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1213,12 +1285,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.dark.text,
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.dark.textSecondary,
     marginTop: 2,
   },
@@ -1226,25 +1298,25 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   instructionsList: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   instructionRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   stepNumPill: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: 'rgba(0, 242, 254, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
   },
   stepNumPillText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '800',
     color: Palette.auroraCyan,
   },
@@ -1252,14 +1324,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   instructionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.dark.text,
   },
   instructionDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.dark.textSecondary,
-    lineHeight: 17,
+    lineHeight: 16,
     marginTop: 2,
   },
   highlightText: {
@@ -1270,14 +1342,64 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: Palette.auroraCyan,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
   },
   modalPrimaryBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#070A12',
+  },
+
+  /* ANDROID OPTION CARDS */
+  androidOptionCard: {
+    backgroundColor: Colors.dark.surfaceElevated,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+    marginBottom: Spacing.xs,
+  },
+  optionTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.xs,
+    marginBottom: 4,
+  },
+  optionTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Palette.auroraCyan,
+  },
+  optionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 2,
+  },
+  optionDesc: {
+    fontSize: 11,
+    color: Colors.dark.textSecondary,
+    lineHeight: 16,
+  },
+  gitReleasesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 242, 254, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+  },
+  gitReleasesBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Palette.auroraCyan,
   },
 });

@@ -65,15 +65,36 @@ export function InstallAppModal({ visible, onClose }: InstallAppModalProps) {
               Install DayPilot AI directly on Android and iPhone for all family members. Works 100% offline with zero cloud dependency.
             </Text>
 
-            {/* Direct PWA Install Button */}
-            <Pressable
-              onPress={handleInstallClick}
-              style={({ pressed }) => [styles.installButton, pressed && styles.installButtonPressed]}>
-              <Ionicons name="download-outline" size={20} color="#070A12" />
-              <Text style={styles.installButtonText}>
-                {installed ? '✅ App Already Installed!' : 'Install App on This Device (PWA)'}
-              </Text>
-            </Pressable>
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsRow}>
+              {/* Direct APK Download Button */}
+              <Pressable
+                onPress={() => {
+                  SoundService.triggerHapticSuccess();
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    const link = document.createElement('a');
+                    link.href = '/daypilot-ai-release.apk';
+                    link.download = 'DayPilot-AI-v1.0.0.apk';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
+                }}
+                style={({ pressed }) => [styles.apkButton, pressed && styles.installButtonPressed]}>
+                <Ionicons name="logo-android" size={18} color="#070A12" />
+                <Text style={styles.apkButtonText}>Download APK (.apk)</Text>
+              </Pressable>
+
+              {/* Direct PWA Install Button */}
+              <Pressable
+                onPress={handleInstallClick}
+                style={({ pressed }) => [styles.installButton, pressed && styles.installButtonPressed]}>
+                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.installButtonText}>
+                  {installed ? '✅ Installed' : 'Install PWA'}
+                </Text>
+              </Pressable>
+            </View>
 
             {/* iOS Safari Guide Card */}
             <View style={styles.platformCard}>
@@ -191,7 +212,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     lineHeight: 18,
   },
-  installButton: {
+  actionButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  apkButton: {
+    flex: 1,
+    minWidth: 160,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -199,16 +228,35 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.auroraCyan,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
+  },
+  apkButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#070A12',
+  },
+  installButton: {
+    flex: 1,
+    minWidth: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#1E2333',
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   installButtonPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
   installButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#070A12',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   platformCard: {
     backgroundColor: Colors.dark.surfaceElevated,

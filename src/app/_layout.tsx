@@ -74,6 +74,7 @@ export default function RootLayout() {
           headerShown: false,
           contentStyle: { backgroundColor: Colors.dark.background },
         }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
 

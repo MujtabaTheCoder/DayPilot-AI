@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
   labelGroup: {
@@ -94,6 +95,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
     backgroundColor: 'rgba(0, 242, 254, 0.1)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,

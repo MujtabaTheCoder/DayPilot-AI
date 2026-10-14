@@ -129,9 +129,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: Spacing.xs,
   },
   leftContainer: {
     flex: 1,
+    minWidth: 140,
     paddingRight: Spacing.xs,
   },
   brandRow: {
@@ -204,6 +206,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    maxWidth: 215,
   },
   voiceButton: {
     width: 38,

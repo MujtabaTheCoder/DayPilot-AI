@@ -172,6 +172,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     paddingTop: Spacing.xs,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',

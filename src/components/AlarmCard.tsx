@@ -216,8 +216,10 @@ const styles = StyleSheet.create({
   },
   clockRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
     marginVertical: Spacing.xs,
   },
   timeDisplayGroup: {

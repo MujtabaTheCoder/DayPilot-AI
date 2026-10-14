@@ -17,11 +17,16 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.daypilot.ai"
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "DayPilot AI - Offline Family OS & Voice Alarm",
+      "shortName": "DayPilot AI",
+      "themeColor": "#00F2FE",
+      "backgroundColor": "#05070D"
     },
     "plugins": [
       "expo-router",

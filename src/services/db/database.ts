@@ -1,11 +1,9 @@
 import { Platform } from 'react-native';
-import * as SQLite from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Routine, AlarmItem, Habit, HabitLog, AssistantMessage, UserProfile, DEFAULT_USER_PROFILE } from './types';
+import { getNativeDatabase, NativeDatabase } from './sqliteNative';
 
 const DB_NAME = 'daypilot_ai_v2.db';
-
-let sqliteDb: SQLite.SQLiteDatabase | null = null;
 
 // Fallback in-memory state for web when native SQLite is unavailable
 interface FallbackStore {
@@ -41,14 +39,11 @@ const memoryStore: FallbackStore = {
   assistantMessages: [...SEED_ASSISTANT],
 };
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
+export async function getDatabase(): Promise<NativeDatabase | null> {
   if (Platform.OS === 'web') {
     return null;
   }
-  if (!sqliteDb) {
-    sqliteDb = SQLite.openDatabaseSync(DB_NAME);
-  }
-  return sqliteDb;
+  return getNativeDatabase(DB_NAME);
 }
 
 export async function initializeDatabase(): Promise<void> {
@@ -176,7 +171,7 @@ export async function initializeDatabase(): Promise<void> {
   }
 }
 
-async function seedNativeDatabase(db: SQLite.SQLiteDatabase) {
+async function seedNativeDatabase(db: NativeDatabase) {
   // Seed single dynamic user profile
   db.runSync(
     `INSERT OR REPLACE INTO user_profile (id, name, preferred_language, custom_voice_greeting, avatar, color, voice_enabled, voice_gender, voice_tone, voice_pitch, voice_rate, onboarding_completed, created_at, updated_at)

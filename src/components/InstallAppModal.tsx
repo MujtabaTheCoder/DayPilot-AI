@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Palette, Spacing, Radius } from '@/constants/theme';
@@ -18,32 +19,13 @@ interface InstallAppModalProps {
 }
 
 export function InstallAppModal({ visible, onClose }: InstallAppModalProps) {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [installed, setInstalled] = useState(false);
+  const localExpUrl = 'exp://192.168.18.37:8081';
 
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const handler = (e: any) => {
-        e.preventDefault();
-        setDeferredPrompt(e);
-      };
-      window.addEventListener('beforeinstallprompt', handler);
-      return () => window.removeEventListener('beforeinstallprompt', handler);
-    }
-  }, []);
-
-  const handleInstallClick = async () => {
+  const handleOpenExpoGo = () => {
     SoundService.triggerHapticSuccess();
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setInstalled(true);
-      }
-      setDeferredPrompt(null);
-    } else {
-      alert('To install DayPilot AI on your phone:\n\n• On iPhone: Open Safari, tap Share icon (arrow pointing up), then tap "Add to Home Screen".\n• On Android: Open Chrome, tap menu (⋮), then tap "Install app" or "Add to Home screen".');
-    }
+    Linking.openURL(localExpUrl).catch(() => {
+      alert('To run natively, make sure Expo Go is installed on your phone, then scan the QR code in your PC terminal!');
+    });
   };
 
   return (
@@ -53,7 +35,7 @@ export function InstallAppModal({ visible, onClose }: InstallAppModalProps) {
           <View style={styles.header}>
             <View style={styles.badgeRow}>
               <View style={styles.glowDot} />
-              <Text style={styles.modalTitle}>Install DayPilot AI on Mobile</Text>
+              <Text style={styles.modalTitle}>Run Native Mobile App</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={20} color={Colors.dark.textSecondary} />
@@ -62,90 +44,88 @@ export function InstallAppModal({ visible, onClose }: InstallAppModalProps) {
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             <Text style={styles.description}>
-              Install DayPilot AI directly on Android and iPhone for all family members. Works 100% offline with zero cloud dependency.
+              Run DayPilot AI directly as a true native mobile app on your phone with zero browser bars, native hardware sound, and offline SQLite storage.
             </Text>
 
-            {/* Action Buttons Row */}
-            <View style={styles.actionButtonsRow}>
-              {/* Direct APK Download Button */}
-              <Pressable
-                onPress={() => {
-                  SoundService.triggerHapticSuccess();
-                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                    const link = document.createElement('a');
-                    link.href = '/daypilot-ai-release.apk';
-                    link.download = 'DayPilot-AI-v1.0.0.apk';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }
-                }}
-                style={({ pressed }) => [styles.apkButton, pressed && styles.installButtonPressed]}>
-                <Ionicons name="logo-android" size={18} color="#070A12" />
-                <Text style={styles.apkButtonText}>Download APK (.apk)</Text>
-              </Pressable>
+            {/* Quick Action: Open in Expo Go */}
+            <Pressable
+              onPress={handleOpenExpoGo}
+              style={({ pressed }) => [styles.nativeLaunchBtn, pressed && styles.installButtonPressed]}>
+              <Ionicons name="flash" size={18} color="#070A12" />
+              <Text style={styles.nativeLaunchBtnText}>Launch in Expo Go (Native App)</Text>
+            </Pressable>
 
-              {/* Direct PWA Install Button */}
-              <Pressable
-                onPress={handleInstallClick}
-                style={({ pressed }) => [styles.installButton, pressed && styles.installButtonPressed]}>
-                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.installButtonText}>
-                  {installed ? '✅ Installed' : 'Install PWA'}
+            {/* Option 1: Instant Native App via Expo Go (iPhone & Android) */}
+            <View style={styles.platformCard}>
+              <View style={styles.platformHeader}>
+                <Ionicons name="phone-portrait-outline" size={20} color={Palette.auroraCyan} />
+                <Text style={styles.platformTitle}>Method 1: Instant Native App (Expo Go)</Text>
+              </View>
+              <Text style={styles.cardExplainer}>
+                Works instantly on both iPhone and Android without cloud compile queues.
+              </Text>
+              <View style={styles.stepRow}>
+                <Text style={styles.stepNum}>1</Text>
+                <Text style={styles.stepText}>
+                  Install <Text style={styles.boldWhite}>Expo Go</Text> from Google Play or Apple App Store.
                 </Text>
-              </Pressable>
-            </View>
-
-            {/* iOS Safari Guide Card */}
-            <View style={styles.platformCard}>
-              <View style={styles.platformHeader}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                <Text style={styles.platformTitle}>iPhone / iOS Installation</Text>
               </View>
-              <View style={styles.stepRow}>
-                <Text style={styles.stepNum}>1</Text>
-                <Text style={styles.stepText}>Open this link in <Text style={styles.boldWhite}>Safari</Text> on your iPhone.</Text>
-              </View>
-              <View style={styles.stepRow}>
-                <Text style={styles.stepNum}>2</Text>
-                <Text style={styles.stepText}>Tap the <Text style={styles.boldWhite}>Share</Text> icon (box with upward arrow) at bottom.</Text>
-              </View>
-              <View style={styles.stepRow}>
-                <Text style={styles.stepNum}>3</Text>
-                <Text style={styles.stepText}>Scroll down and select <Text style={styles.boldCyan}>"Add to Home Screen"</Text>.</Text>
-              </View>
-            </View>
-
-            {/* Android Chrome Guide Card */}
-            <View style={styles.platformCard}>
-              <View style={styles.platformHeader}>
-                <Ionicons name="logo-android" size={20} color={Palette.auroraEmerald} />
-                <Text style={styles.platformTitle}>Android Phone Installation</Text>
-              </View>
-              <View style={styles.stepRow}>
-                <Text style={styles.stepNum}>1</Text>
-                <Text style={styles.stepText}>Open this link in <Text style={styles.boldWhite}>Google Chrome</Text>.</Text>
+              <View style={styles.storeButtonsRow}>
+                <Pressable
+                  onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=host.exp.exponent')}
+                  style={styles.storeMiniBtn}>
+                  <Ionicons name="logo-google-playstore" size={14} color={Palette.auroraEmerald} />
+                  <Text style={styles.storeMiniBtnText}>Google Play</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => Linking.openURL('https://apps.apple.com/app/expo-go/id982107779')}
+                  style={styles.storeMiniBtn}>
+                  <Ionicons name="logo-apple" size={14} color="#FFFFFF" />
+                  <Text style={styles.storeMiniBtnText}>App Store</Text>
+                </Pressable>
               </View>
               <View style={styles.stepRow}>
                 <Text style={styles.stepNum}>2</Text>
-                <Text style={styles.stepText}>Tap the menu icon (⋮) in the top-right corner.</Text>
+                <Text style={styles.stepText}>
+                  Connect your phone to the same Wi-Fi as this PC.
+                </Text>
               </View>
               <View style={styles.stepRow}>
                 <Text style={styles.stepNum}>3</Text>
-                <Text style={styles.stepText}>Select <Text style={styles.boldCyan}>"Install App"</Text> or "Add to Home Screen".</Text>
+                <Text style={styles.stepText}>
+                  On Android, open Expo Go and scan the QR code in terminal. On iPhone, open the Camera app and tap the Expo Go banner!
+                </Text>
               </View>
             </View>
 
-            {/* Local Family Network Address */}
+            {/* Option 2: Standalone Native APK (Android) */}
+            <View style={[styles.platformCard, { borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
+              <View style={styles.platformHeader}>
+                <Ionicons name="logo-android" size={20} color={Palette.auroraPurple} />
+                <Text style={styles.platformTitle}>Method 2: Standalone APK (.apk installer)</Text>
+              </View>
+              <Text style={styles.cardExplainer}>
+                Build an independent APK binary with its own custom launcher icon using EAS:
+              </Text>
+              <View style={styles.codeSnippetBox}>
+                <Text style={styles.codeSnippetText}>npx eas login</Text>
+                <Text style={styles.codeSnippetText}>npx eas build -p android --profile preview</Text>
+              </View>
+              <Text style={styles.apkExplainer}>
+                Once the cloud build completes, EAS outputs a direct link to download and install the native `.apk` onto your phone.
+              </Text>
+            </View>
+
+            {/* Local Wi-Fi Connection Info */}
             <View style={styles.networkCard}>
               <Ionicons name="wifi-outline" size={20} color={Palette.auroraCyan} />
               <View style={styles.networkInfo}>
-                <Text style={styles.networkTitle}>Local Wi-Fi Network Access</Text>
+                <Text style={styles.networkTitle}>Your Local Mobile Dev URL</Text>
                 <Text style={styles.networkDesc}>
-                  Open this address on your phone browser on your home Wi-Fi:
+                  Expo Dev Server is actively running on your local Wi-Fi:
                 </Text>
                 <View style={styles.ipBox}>
-                  <Text style={styles.ipText}>http://localhost:8081</Text>
+                  <Text style={styles.ipText}>{localExpUrl}</Text>
                 </View>
               </View>
             </View>
@@ -212,15 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     lineHeight: 18,
   },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  apkButton: {
-    flex: 1,
-    minWidth: 160,
+  nativeLaunchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -228,35 +200,64 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.auroraCyan,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  apkButtonText: {
-    fontSize: 13,
+  nativeLaunchBtnText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#070A12',
   },
-  installButton: {
-    flex: 1,
-    minWidth: 120,
+  cardExplainer: {
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    lineHeight: 16,
+    marginBottom: Spacing.xs,
+  },
+  storeButtonsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginVertical: Spacing.xs,
+    paddingLeft: 28,
+  },
+  storeMiniBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: '#1E2333',
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 6,
     paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  storeMiniBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.dark.text,
+  },
+  codeSnippetBox: {
+    backgroundColor: '#070A12',
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    gap: 4,
+    marginVertical: Spacing.xs,
+  },
+  codeSnippetText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    color: Palette.auroraCyan,
+  },
+  apkExplainer: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
+    lineHeight: 15,
   },
   installButtonPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
-  },
-  installButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   platformCard: {
     backgroundColor: Colors.dark.surfaceElevated,

@@ -27,7 +27,6 @@ export default function LandingScreen() {
   const [showIosModal, setShowIosModal] = useState(false);
   const [showAndroidModal, setShowAndroidModal] = useState(false);
   const [detectedPlatform, setDetectedPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop');
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // If user opens the standalone native mobile app, route directly into DayPilot OS
   useEffect(() => {
@@ -45,14 +44,6 @@ export default function LandingScreen() {
       } else {
         setDetectedPlatform('desktop');
       }
-
-      // Capture native PWA install prompt
-      const handleBeforeInstall = (e: any) => {
-        e.preventDefault();
-        setDeferredPrompt(e);
-      };
-      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-      return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     }
   }, [router]);
 
@@ -61,17 +52,17 @@ export default function LandingScreen() {
     router.push('/(tabs)');
   };
 
-  const handleInstallAndroid = async () => {
+  const localExpUrl = 'exp://192.168.18.37:8081';
+
+  const handleOpenExpoGo = () => {
     SoundService.triggerHapticSuccess();
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
+    Linking.openURL(localExpUrl).catch(() => {
+      if (detectedPlatform === 'ios') {
+        setShowIosModal(true);
+      } else {
+        setShowAndroidModal(true);
       }
-    } else {
-      setShowAndroidModal(true);
-    }
+    });
   };
 
   const handleTestVoice = async (demoId: string, text: string) => {
@@ -173,6 +164,23 @@ export default function LandingScreen() {
             {detectedPlatform === 'ios' && (
               <>
                 <Pressable
+                  onPress={handleOpenExpoGo}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.apkBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={styles.btnIconCircle}>
+                    <Ionicons name="flash" size={22} color="#070A12" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabel}>NATIVE MOBILE APP • 1-TAP</Text>
+                    <Text style={styles.btnMainTitle}>Open in Expo Go</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} color="#070A12" />
+                </Pressable>
+
+                <Pressable
                   onPress={() => {
                     SoundService.triggerHapticLight();
                     setShowIosModal(true);
@@ -186,8 +194,8 @@ export default function LandingScreen() {
                     <Ionicons name="logo-apple" size={22} color="#FFFFFF" />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabelIos}>IPHONE & IPAD</Text>
-                    <Text style={styles.btnMainTitleIos}>Add to iPhone Home Screen</Text>
+                    <Text style={styles.btnTopLabelIos}>IPHONE SETUP</Text>
+                    <Text style={styles.btnMainTitleIos}>iPhone Native Instructions</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
                 </Pressable>
@@ -203,10 +211,9 @@ export default function LandingScreen() {
                     <Ionicons name="open-outline" size={20} color={Palette.auroraCyan} />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabelWeb}>INSTANT ACCESS</Text>
-                    <Text style={styles.btnMainTitleWeb}>Open in Safari Browser</Text>
+                    <Text style={styles.btnTopLabelWeb}>BROWSER VERSION</Text>
+                    <Text style={styles.btnMainTitleWeb}>Open Web Preview</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={18} color={Palette.auroraCyan} />
                 </Pressable>
               </>
             )}
@@ -215,37 +222,56 @@ export default function LandingScreen() {
             {detectedPlatform === 'android' && (
               <>
                 <Pressable
-                  onPress={handleInstallAndroid}
+                  onPress={handleOpenExpoGo}
                   style={({ pressed }) => [
                     styles.primaryCtaBtn,
                     styles.apkBtn,
                     pressed && styles.buttonPressed,
                   ]}>
                   <View style={styles.btnIconCircle}>
-                    <Ionicons name="logo-android" size={22} color="#070A12" />
+                    <Ionicons name="flash" size={22} color="#070A12" />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabel}>1-TAP ANDROID INSTALL</Text>
-                    <Text style={styles.btnMainTitle}>Install App on Android</Text>
+                    <Text style={styles.btnTopLabel}>NATIVE MOBILE APP • 1-TAP</Text>
+                    <Text style={styles.btnMainTitle}>Open in Expo Go</Text>
                   </View>
-                  <Ionicons name="download-outline" size={18} color="#070A12" />
+                  <Ionicons name="arrow-forward" size={18} color="#070A12" />
                 </Pressable>
 
                 <Pressable
-                  onPress={handleLaunchWebApp}
+                  onPress={() => {
+                    SoundService.triggerHapticLight();
+                    setShowAndroidModal(true);
+                  }}
                   style={({ pressed }) => [
                     styles.primaryCtaBtn,
                     styles.webBtn,
                     pressed && styles.buttonPressed,
                   ]}>
                   <View style={[styles.btnIconCircle, styles.btnIconCircleWeb]}>
-                    <Ionicons name="open-outline" size={20} color={Palette.auroraCyan} />
+                    <Ionicons name="logo-android" size={20} color={Palette.auroraCyan} />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabelWeb}>BROWSER VERSION</Text>
-                    <Text style={styles.btnMainTitleWeb}>Launch in Chrome</Text>
+                    <Text style={styles.btnTopLabelWeb}>STANDALONE APK & SETUP</Text>
+                    <Text style={styles.btnMainTitleWeb}>Install Native APK</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={18} color={Palette.auroraCyan} />
+                  <Ionicons name="chevron-forward" size={18} color={Palette.auroraCyan} />
+                </Pressable>
+
+                <Pressable
+                  onPress={handleLaunchWebApp}
+                  style={({ pressed }) => [
+                    styles.primaryCtaBtn,
+                    styles.iosBtn,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={[styles.btnIconCircle, styles.btnIconCircleIos]}>
+                    <Ionicons name="open-outline" size={18} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTopLabelIos}>BROWSER VERSION</Text>
+                    <Text style={styles.btnMainTitleIos}>Open Web Preview</Text>
+                  </View>
                 </Pressable>
               </>
             )}
@@ -264,7 +290,7 @@ export default function LandingScreen() {
                     <Ionicons name="rocket-outline" size={22} color="#070A12" />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabel}>WEB APP</Text>
+                    <Text style={styles.btnTopLabel}>BROWSER PREVIEW</Text>
                     <Text style={styles.btnMainTitle}>Launch Web Version</Text>
                   </View>
                   <Ionicons name="arrow-forward" size={18} color="#070A12" />
@@ -284,8 +310,8 @@ export default function LandingScreen() {
                     <Ionicons name="logo-android" size={20} color={Palette.auroraCyan} />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabelWeb}>ANDROID INSTALL</Text>
-                    <Text style={styles.btnMainTitleWeb}>Install on Android</Text>
+                    <Text style={styles.btnTopLabelWeb}>ANDROID MOBILE APP</Text>
+                    <Text style={styles.btnMainTitleWeb}>Android Setup & APK</Text>
                   </View>
                 </Pressable>
 
@@ -303,8 +329,8 @@ export default function LandingScreen() {
                     <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
                   </View>
                   <View style={styles.btnTextCol}>
-                    <Text style={styles.btnTopLabelIos}>IPHONE SETUP</Text>
-                    <Text style={styles.btnMainTitleIos}>Install on iPhone</Text>
+                    <Text style={styles.btnTopLabelIos}>IPHONE MOBILE APP</Text>
+                    <Text style={styles.btnMainTitleIos}>iPhone Native Setup</Text>
                   </View>
                 </Pressable>
               </>
@@ -313,7 +339,7 @@ export default function LandingScreen() {
 
           {/* Platform note for clarity */}
           <Text style={styles.platformNoticeText}>
-            💡 DayPilot AI installs directly onto iPhones & Androids via Home Screen PWA. Zero file parse errors.
+            ⚡ Run as a 100% native mobile app with Expo Go on your phone (No browser URL bar, native SQLite, and offline voice alarms).
           </Text>
         </View>
 
@@ -569,7 +595,7 @@ export default function LandingScreen() {
         </View>
       </ScrollView>
 
-      {/* iOS PWA INSTALLATION MODAL */}
+      {/* iOS NATIVE APP & SETUP MODAL */}
       <Modal
         visible={showIosModal}
         transparent
@@ -582,9 +608,9 @@ export default function LandingScreen() {
                 <Ionicons name="logo-apple" size={24} color="#FFFFFF" />
               </View>
               <View style={styles.modalTitleCol}>
-                <Text style={styles.modalTitle}>Install on iPhone / iPad</Text>
+                <Text style={styles.modalTitle}>Run Native App on iPhone</Text>
                 <Text style={styles.modalSubtitle}>
-                  Zero file downloads • Native Apple Home Screen App
+                  Zero browser bars • 100% Native iOS Mobile Engine
                 </Text>
               </View>
               <Pressable
@@ -596,47 +622,53 @@ export default function LandingScreen() {
             </View>
 
             <View style={styles.instructionsList}>
-              <View style={styles.instructionRow}>
-                <View style={styles.stepNumPill}>
-                  <Text style={styles.stepNumPillText}>1</Text>
+              {/* Method 1: Expo Go (Instant Native App) */}
+              <View style={styles.androidOptionCard}>
+                <View style={styles.optionTag}>
+                  <Text style={styles.optionTagText}>RECOMMENDED • 100% NATIVE MOBILE APP</Text>
                 </View>
-                <View style={styles.instructionTextCol}>
-                  <Text style={styles.instructionTitle}>
-                    Open in Safari & Tap Share
+                <Text style={styles.optionTitle}>Method 1: Instant Native App (Expo Go)</Text>
+                <Text style={styles.optionDesc}>
+                  Runs DayPilot AI directly on your iPhone with native hardware audio, offline SQLite, and zero browser chrome:
+                </Text>
+
+                <View style={{ gap: 6, marginTop: 6 }}>
+                  <Text style={styles.instructionDesc}>
+                    1. Install <Text style={styles.highlightText}>Expo Go</Text> from the Apple App Store:
+                  </Text>
+                  <Pressable
+                    onPress={() => Linking.openURL('https://apps.apple.com/app/expo-go/id982107779')}
+                    style={styles.gitReleasesBtn}>
+                    <Ionicons name="logo-apple" size={14} color="#FFFFFF" />
+                    <Text style={[styles.gitReleasesBtnText, { color: '#FFFFFF' }]}>Open in App Store</Text>
+                    <Ionicons name="open-outline" size={12} color="#FFFFFF" />
+                  </Pressable>
+
+                  <Text style={styles.instructionDesc}>
+                    2. Connect iPhone to the same Wi-Fi as your computer.
                   </Text>
                   <Text style={styles.instructionDesc}>
-                    Tap the Safari Share button at the bottom (the square with upward
-                    arrow <Ionicons name="share-outline" size={13} color={Palette.auroraCyan} />).
+                    3. Open the iPhone <Text style={styles.highlightText}>Camera</Text>, aim at the terminal QR code, and tap <Text style={styles.highlightText}>"Open in Expo Go"</Text>!
                   </Text>
                 </View>
+
+                <Pressable
+                  onPress={handleOpenExpoGo}
+                  style={[styles.modalPrimaryBtn, { marginTop: Spacing.sm }]}>
+                  <Ionicons name="flash" size={16} color="#070A12" />
+                  <Text style={styles.modalPrimaryBtnText}>Launch in Expo Go</Text>
+                </Pressable>
               </View>
 
-              <View style={styles.instructionRow}>
-                <View style={styles.stepNumPill}>
-                  <Text style={styles.stepNumPillText}>2</Text>
+              {/* Method 2: Safari Add to Home Screen */}
+              <View style={[styles.androidOptionCard, { borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                <View style={[styles.optionTag, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                  <Text style={[styles.optionTagText, { color: '#FFFFFF' }]}>ALTERNATIVE • NO APP STORE NEEDED</Text>
                 </View>
-                <View style={styles.instructionTextCol}>
-                  <Text style={styles.instructionTitle}>
-                    Select "Add to Home Screen"
-                  </Text>
-                  <Text style={styles.instructionDesc}>
-                    Scroll down the options and tap{' '}
-                    <Text style={styles.highlightText}>"Add to Home Screen"</Text> (+ icon).
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.instructionRow}>
-                <View style={styles.stepNumPill}>
-                  <Text style={styles.stepNumPillText}>3</Text>
-                </View>
-                <View style={styles.instructionTextCol}>
-                  <Text style={styles.instructionTitle}>Tap "Add" in Top-Right</Text>
-                  <Text style={styles.instructionDesc}>
-                    Tap <Text style={styles.highlightText}>"Add"</Text>. DayPilot installs
-                    instantly on your iPhone home screen with offline audio support!
-                  </Text>
-                </View>
+                <Text style={styles.optionTitle}>Method 2: Add to iPhone Home Screen</Text>
+                <Text style={styles.optionDesc}>
+                  In Safari, tap <Ionicons name="share-outline" size={12} color={Palette.auroraCyan} /> Share $\rightarrow$ tap <Text style={styles.highlightText}>"Add to Home Screen"</Text>.
+                </Text>
               </View>
             </View>
 
@@ -645,15 +677,15 @@ export default function LandingScreen() {
                 setShowIosModal(false);
                 handleLaunchWebApp();
               }}
-              style={styles.modalPrimaryBtn}>
-              <Text style={styles.modalPrimaryBtnText}>Open Web App Now</Text>
-              <Ionicons name="arrow-forward" size={16} color="#070A12" />
+              style={[styles.modalPrimaryBtn, { backgroundColor: '#1E2333' }]}>
+              <Text style={[styles.modalPrimaryBtnText, { color: '#FFFFFF' }]}>Open Web Preview</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* ANDROID INSTALLATION MODAL */}
+      {/* ANDROID NATIVE APP & SETUP MODAL */}
       <Modal
         visible={showAndroidModal}
         transparent
@@ -666,9 +698,9 @@ export default function LandingScreen() {
                 <Ionicons name="logo-android" size={24} color={Palette.auroraCyan} />
               </View>
               <View style={styles.modalTitleCol}>
-                <Text style={styles.modalTitle}>Install on Android</Text>
+                <Text style={styles.modalTitle}>Run Native App on Android</Text>
                 <Text style={styles.modalSubtitle}>
-                  Choose your preferred installation method
+                  Zero browser bars • 100% Native Android Mobile Engine
                 </Text>
               </View>
               <Pressable
@@ -680,37 +712,60 @@ export default function LandingScreen() {
             </View>
 
             <View style={styles.instructionsList}>
-              {/* Method 1: PWA (Recommended, No Parse Error) */}
+              {/* Method 1: Expo Go (Instant Native App) */}
               <View style={styles.androidOptionCard}>
                 <View style={styles.optionTag}>
-                  <Text style={styles.optionTagText}>RECOMMENDED • 1-TAP</Text>
+                  <Text style={styles.optionTagText}>RECOMMENDED • 100% NATIVE MOBILE APP</Text>
                 </View>
-                <Text style={styles.optionTitle}>Home Screen Web App (PWA)</Text>
+                <Text style={styles.optionTitle}>Method 1: Instant Native App (Expo Go)</Text>
                 <Text style={styles.optionDesc}>
-                  In Chrome, tap the menu (⋮) $\rightarrow$ tap <Text style={styles.highlightText}>"Add to Home Screen"</Text> or <Text style={styles.highlightText}>"Install App"</Text>. Works 100% offline with zero parse errors!
+                  Runs DayPilot AI directly on your Android phone as a real native app outside Chrome:
                 </Text>
+
+                <View style={{ gap: 6, marginTop: 6 }}>
+                  <Text style={styles.instructionDesc}>
+                    1. Install <Text style={styles.highlightText}>Expo Go</Text> from Google Play:
+                  </Text>
+                  <Pressable
+                    onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=host.exp.exponent')}
+                    style={styles.gitReleasesBtn}>
+                    <Ionicons name="logo-google-playstore" size={14} color={Palette.auroraCyan} />
+                    <Text style={styles.gitReleasesBtnText}>Open in Google Play</Text>
+                    <Ionicons name="open-outline" size={12} color={Palette.auroraCyan} />
+                  </Pressable>
+
+                  <Text style={styles.instructionDesc}>
+                    2. Connect Android phone to the same Wi-Fi as your computer.
+                  </Text>
+                  <Text style={styles.instructionDesc}>
+                    3. Open Expo Go $\rightarrow$ tap <Text style={styles.highlightText}>"Scan QR code"</Text> $\rightarrow$ scan terminal QR code!
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={handleOpenExpoGo}
+                  style={[styles.modalPrimaryBtn, { marginTop: Spacing.sm }]}>
+                  <Ionicons name="flash" size={16} color="#070A12" />
+                  <Text style={styles.modalPrimaryBtnText}>Launch in Expo Go</Text>
+                </Pressable>
               </View>
 
-              {/* Method 2: Standalone APK via GitHub */}
-              <View style={[styles.androidOptionCard, { borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              {/* Method 2: Standalone APK via EAS */}
+              <View style={[styles.androidOptionCard, { borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
                 <View style={[styles.optionTag, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-                  <Text style={[styles.optionTagText, { color: Palette.auroraPurple }]}>STANDALONE APK</Text>
+                  <Text style={[styles.optionTagText, { color: Palette.auroraPurple }]}>STANDALONE APK (.apk installer)</Text>
                 </View>
-                <Text style={styles.optionTitle}>Build or Download APK Release</Text>
+                <Text style={styles.optionTitle}>Method 2: Build Standalone APK Binary</Text>
                 <Text style={styles.optionDesc}>
-                  Download pre-compiled binaries from GitHub Releases, or generate an APK using Expo EAS:
+                  To install DayPilot AI as an independent app without Expo Go, compile a standalone `.apk` using Expo EAS:
                 </Text>
-                <Pressable
-                  onPress={() =>
-                    Linking.openURL(
-                      'https://github.com/MujtabaTheCoder/DayPilot-AI/releases'
-                    )
-                  }
-                  style={styles.gitReleasesBtn}>
-                  <Ionicons name="logo-github" size={15} color={Palette.auroraCyan} />
-                  <Text style={styles.gitReleasesBtnText}>Open GitHub Releases</Text>
-                  <Ionicons name="open-outline" size={13} color={Palette.auroraCyan} />
-                </Pressable>
+                <View style={{ backgroundColor: '#070A12', padding: 8, borderRadius: 6, marginTop: 6, gap: 4 }}>
+                  <Text style={{ fontFamily: 'monospace', fontSize: 11, color: Palette.auroraCyan }}>npx eas login</Text>
+                  <Text style={{ fontFamily: 'monospace', fontSize: 11, color: Palette.auroraCyan }}>npx eas build -p android --profile preview</Text>
+                </View>
+                <Text style={[styles.instructionDesc, { marginTop: 6 }]}>
+                  EAS builds the APK in the cloud and provides a direct download link to install the `.apk` on your phone with its own custom launcher icon!
+                </Text>
               </View>
             </View>
 
@@ -719,9 +774,9 @@ export default function LandingScreen() {
                 setShowAndroidModal(false);
                 handleLaunchWebApp();
               }}
-              style={styles.modalPrimaryBtn}>
-              <Text style={styles.modalPrimaryBtnText}>Open Web App Now</Text>
-              <Ionicons name="arrow-forward" size={16} color="#070A12" />
+              style={[styles.modalPrimaryBtn, { backgroundColor: '#1E2333' }]}>
+              <Text style={[styles.modalPrimaryBtnText, { color: '#FFFFFF' }]}>Open Web Preview</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
